@@ -1,0 +1,16 @@
+{
+  "name": "dleo",
+  "version": "0.2.0",
+  "description": "DLeo - personal software bug detective and repair assistant",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test",
+    "scan": "node src/index.js scan",
+    "doctor": "node src/index.js doctor"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
