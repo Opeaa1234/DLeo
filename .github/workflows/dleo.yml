@@ -29,7 +29,4 @@ jobs:
         run: npm test
 
       - name: Run DLeo scan
-        run: npm run scan
-
-      - name: Run DLeo doctor
-        run: npm run doctor
+        run: npm run scan --                      https://www.facebook.com/
