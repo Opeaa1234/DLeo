@@ -3,9 +3,11 @@
 // server-side secret store/environment variable and never commit it to Git.
 // This adapter is intended for a pre-registered recipient, not arbitrary websites.
 
+import { validatePaymentPolicy } from "../payment-policy.js";
+
 const PAYSTACK_API_URL = "https://api.paystack.co";
 
-export function createPaystackTransferProvider({ secretKey, recipientCode, fetchImpl = fetch } = {}) {
+export function createPaystackTransferProvider({ secretKey, recipientCode, fetchImpl = fetch, maxAmount = 100000 } = {}) {
   if (!secretKey) {
     throw new Error("PAYSTACK_SECRET_KEY is required at runtime and must not be committed to Git.");
   }
@@ -15,9 +17,7 @@ export function createPaystackTransferProvider({ secretKey, recipientCode, fetch
 
   return {
     async charge(paymentRequest) {
-      if (!paymentRequest || paymentRequest.status !== "authorized") {
-        throw new Error("Only an authorized payment can be submitted.");
-      }
+      validatePaymentPolicy(paymentRequest, { maxAmount });
 
       const response = await fetchImpl(`${PAYSTACK_API_URL}/transfer`, {
         method: "POST",
