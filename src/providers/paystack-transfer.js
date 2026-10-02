@@ -1,23 +1,22 @@
-// Paystack transfer adapter (test/live selection is controlled by the supplied API key).
+// Paystack transfer adapter.
 // No credentials are stored in this repository. Keep PAYSTACK_SECRET_KEY in a
 // server-side secret store/environment variable and never commit it to Git.
+// This adapter is intended for a pre-registered recipient, not arbitrary websites.
 
 const PAYSTACK_API_URL = "https://api.paystack.co";
 
-export function createPaystackTransferProvider({ secretKey, fetchImpl = fetch } = {}) {
+export function createPaystackTransferProvider({ secretKey, recipientCode, fetchImpl = fetch } = {}) {
   if (!secretKey) {
     throw new Error("PAYSTACK_SECRET_KEY is required at runtime and must not be committed to Git.");
+  }
+  if (!recipientCode) {
+    throw new Error("A pre-registered Paystack recipient code is required.");
   }
 
   return {
     async charge(paymentRequest) {
       if (!paymentRequest || paymentRequest.status !== "authorized") {
         throw new Error("Only an authorized payment can be submitted.");
-      }
-
-      const recipient = paymentRequest.recipientCode;
-      if (!recipient) {
-        throw new Error("A pre-registered transfer recipient is required.");
       }
 
       const response = await fetchImpl(`${PAYSTACK_API_URL}/transfer`, {
@@ -29,9 +28,10 @@ export function createPaystackTransferProvider({ secretKey, fetchImpl = fetch } 
         body: JSON.stringify({
           source: "balance",
           amount: paymentRequest.amount,
-          recipient,
-          reference: paymentRequest.reference,
-          reason: paymentRequest.merchant
+          recipient: recipientCode,
+          reference: paymentRequest.id,
+          reason: paymentRequest.merchant,
+          currency: paymentRequest.currency
         })
       });
 
