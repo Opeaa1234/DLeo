@@ -61,3 +61,13 @@ test("Paystack adapter requires a pre-registered recipient", async () => {
     /pre-registered Paystack recipient code/
   );
 });
+
+test("Paystack adapter blocks a live key unless live transfers are explicitly enabled", () => {
+  assert.throws(
+    () => createPaystackTransferProvider({
+      secretKey: "sk_live_example",
+      recipientCode: "RCP_TEST"
+    }),
+    /Live Paystack transfers are disabled/
+  );
+});
