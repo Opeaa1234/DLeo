@@ -5,7 +5,7 @@ import { createPaymentRequest } from "../src/payments.js";
 import { createAuditLog } from "../src/payment-audit.js";
 import { runSandboxPayment } from "../src/payment-flow.js";
 import { createSandboxProvider } from "../src/providers/sandbox.js";
-import { createIdempotencyStore } from "../src/payment-idempotency.js";
+import { createIdempotencyStore, paymentIdempotencyKey } from "../src/payment-idempotency.js";
 
 test("bounded retry retries only transient failures", async () => {
   let attempts = 0;
@@ -38,7 +38,7 @@ test("non-retryable failure is rejected and audited", async () => {
 
   assert.equal(result.status, "rejected");
   assert.equal(auditLog.list().at(-1).action, "payment.failed");
-  assert.equal(store.get(`${request.id}:5000:NGN:sandbox-merchant:`).status, "rejected");
+  assert.equal(store.get(paymentIdempotencyKey(request)).status, "rejected");
 });
 
 test("successful sandbox flow remains successful with retry layer", async () => {
