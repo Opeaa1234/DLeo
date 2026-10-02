@@ -34,6 +34,7 @@ test("Paystack adapter sends only an authorized request to a fixed recipient", a
   assert.equal(body.amount, 5000);
   assert.equal(body.recipient, "RCP_TEST");
   assert.equal(body.reference, authorized.id);
+  assert.equal(body.currency, "NGN");
 });
 
 test("Paystack adapter blocks an unauthorized request before network access", async () => {
@@ -52,4 +53,11 @@ test("Paystack adapter blocks an unauthorized request before network access", as
   });
 
   await assert.rejects(() => provider.charge(pending), /authorized payment/);
+});
+
+test("Paystack adapter requires a pre-registered recipient", async () => {
+  assert.throws(
+    () => createPaystackTransferProvider({ secretKey: "test-secret-not-real" }),
+    /pre-registered Paystack recipient code/
+  );
 });
