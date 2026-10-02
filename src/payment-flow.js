@@ -2,8 +2,9 @@ import { authorizePayment } from "./payments.js";
 import { transitionPayment } from "./payment-state.js";
 import { createAuditEvent } from "./payment-audit.js";
 import { paymentIdempotencyKey } from "./payment-idempotency.js";
+import { withRetry } from "./payment-reliability.js";
 
-export async function runSandboxPayment(request, provider, auditLog, confirmation = true, idempotencyStore = null) {
+export async function runSandboxPayment(request, provider, auditLog, confirmation = true, idempotencyStore = null, retryOptions = {}) {
   const key = paymentIdempotencyKey(request);
   const previous = idempotencyStore?.get(key);
   if (previous) {
@@ -33,16 +34,32 @@ export async function runSandboxPayment(request, provider, auditLog, confirmatio
     provider: provider.name
   }));
 
-  const result = await provider.charge(submitted);
-  const finalPayment = result.payment;
-  idempotencyStore?.set(key, finalPayment);
+  try {
+    const result = await withRetry(
+      () => provider.charge(submitted),
+      retryOptions
+    );
+    const finalPayment = result.payment;
+    idempotencyStore?.set(key, finalPayment);
 
-  auditLog.append(createAuditEvent({
-    request: finalPayment,
-    action: "payment.sandbox_simulated",
-    outcome: result.status,
-    provider: result.provider
-  }));
+    auditLog.append(createAuditEvent({
+      request: finalPayment,
+      action: "payment.sandbox_simulated",
+      outcome: result.status,
+      provider: result.provider
+    }));
 
-  return finalPayment;
+    return finalPayment;
+  } catch (error) {
+    const rejected = transitionPayment(submitted, "rejected");
+    idempotencyStore?.set(key, rejected);
+    auditLog.append(createAuditEvent({
+      request: rejected,
+      action: "payment.failed",
+      outcome: "rejected",
+      provider: provider.name,
+      detail: error?.message ?? "Provider operation failed"
+    }));
+    return rejected;
+  }
 }
