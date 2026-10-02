@@ -3,6 +3,7 @@ import { transitionPayment } from "./payment-state.js";
 import { createAuditEvent } from "./payment-audit.js";
 import { paymentIdempotencyKey } from "./payment-idempotency.js";
 import { withRetry } from "./payment-reliability.js";
+import { withTimeout } from "./payment-timeout.js";
 
 export async function runSandboxPayment(request, provider, auditLog, confirmation = true, idempotencyStore = null, retryOptions = {}) {
   const key = paymentIdempotencyKey(request);
@@ -34,10 +35,14 @@ export async function runSandboxPayment(request, provider, auditLog, confirmatio
     provider: provider.name
   }));
 
+  const { timeoutMs, ...retryConfig } = retryOptions;
+
   try {
     const result = await withRetry(
-      () => provider.charge(submitted),
-      retryOptions
+      () => timeoutMs
+        ? withTimeout(() => provider.charge(submitted), timeoutMs)
+        : provider.charge(submitted),
+      retryConfig
     );
     const finalPayment = result.payment;
     idempotencyStore?.set(key, finalPayment);
@@ -55,7 +60,7 @@ export async function runSandboxPayment(request, provider, auditLog, confirmatio
     idempotencyStore?.set(key, rejected);
     auditLog.append(createAuditEvent({
       request: rejected,
-      action: "payment.failed",
+      action: error?.code === "PROVIDER_TIMEOUT" ? "payment.provider_timeout" : "payment.failed",
       outcome: "rejected",
       provider: provider.name,
       detail: error?.message ?? "Provider operation failed"
