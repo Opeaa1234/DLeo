@@ -21,7 +21,7 @@ export function assertProductionActivation({
     throw new Error("Production activation requires explicit operator approval.");
   }
 
-  if (!secretKey) {
+  if (typeof secretKey !== "string" || secretKey.length === 0) {
     throw new Error("A production secret key must be supplied at runtime.");
   }
 
@@ -29,7 +29,7 @@ export function assertProductionActivation({
     throw new Error("Production activation requires a production Paystack secret key.");
   }
 
-  if (!recipientCode) {
+  if (typeof recipientCode !== "string" || recipientCode.length === 0) {
     throw new Error("A production recipient code is required.");
   }
 
