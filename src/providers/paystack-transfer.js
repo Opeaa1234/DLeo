@@ -13,7 +13,8 @@ export function createPaystackTransferProvider({
   recipientCode,
   fetchImpl = fetch,
   maxAmount = 100000,
-  allowLive = false
+  allowLive = false,
+  environment = process.env.NODE_ENV
 } = {}) {
   if (!secretKey) {
     throw new Error("PAYSTACK_SECRET_KEY is required at runtime and must not be committed to Git.");
@@ -26,6 +27,12 @@ export function createPaystackTransferProvider({
   // Live transfers must be an explicit, separately reviewed decision.
   if (secretKey.startsWith("sk_live_") && allowLive !== true) {
     throw new Error("Live Paystack transfers are disabled until explicitly enabled.");
+  }
+
+  // Even an explicit live flag is invalid outside production. This keeps a
+  // sandbox/test process from ever becoming a live transfer path by accident.
+  if (allowLive === true && environment !== "production") {
+    throw new Error("Live Paystack transfers require NODE_ENV=production.");
   }
 
   return {
