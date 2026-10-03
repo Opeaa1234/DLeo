@@ -6,7 +6,7 @@ export function createPaystackTestConfig({
   recipientCode,
   maxAmount = 100000
 } = {}) {
-  if (!secretKey) {
+  if (typeof secretKey !== "string" || secretKey.length === 0) {
     throw new Error("PAYSTACK_SECRET_KEY is required at runtime.");
   }
 
@@ -14,7 +14,7 @@ export function createPaystackTestConfig({
     throw new Error("Test configuration requires a Paystack test secret key.");
   }
 
-  if (!recipientCode) {
+  if (typeof recipientCode !== "string" || recipientCode.length === 0) {
     throw new Error("A pre-registered test recipient code is required.");
   }
 
