@@ -16,7 +16,11 @@ export function createControlledTransfer({ idempotency, reliability, audit }) {
           attempts: 0,
           providerStatus: undefined
         });
-        return started.result;
+        // A completed duplicate reuses the original provider result. An
+        // in-flight duplicate returns its state without contacting the provider.
+        return started.result.status === "completed"
+          ? started.result.result
+          : started.result;
       }
 
       try {
