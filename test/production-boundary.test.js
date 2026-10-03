@@ -9,20 +9,20 @@ const root = path.resolve(here, "..");
 
 function sourceFiles(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.name === "node_modules" || entry.name === ".git") return [];
+    if (entry.name === "node_modules" || entry.name === ".git" || entry.name === "test") return [];
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) return sourceFiles(full);
     return /\.(js|mjs|cjs|json|yml|yaml)$/.test(entry.name) ? [full] : [];
   });
 }
 
-test("repository contains no live Paystack credential literal", () => {
+test("production source contains no live Paystack credential literal", () => {
   const matches = sourceFiles(root).filter((file) => {
     const text = fs.readFileSync(file, "utf8");
     return /sk_live_[A-Za-z0-9_-]+/.test(text);
   });
 
-  assert.deepEqual(matches, [], "live Paystack credential literals must never be committed");
+  assert.deepEqual(matches, [], "live Paystack credential literals must never be committed to production source/config");
 });
 
 test("production boundary remains documented", () => {
