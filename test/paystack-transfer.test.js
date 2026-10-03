@@ -95,3 +95,33 @@ test("Paystack adapter blocks the live flag when the credential is not live", ()
     /live secret key/
   );
 });
+
+test("Paystack adapter requires the centralized production activation gate", () => {
+  assert.throws(
+    () => createPaystackTransferProvider({
+      secretKey: "sk_live_example",
+      recipientCode: "RCP_PROD_TEST",
+      allowLive: true,
+      environment: "production",
+      productionApproval: "false",
+      auditEnabled: true,
+      monitoringEnabled: true,
+      rollbackEnabled: true
+    }),
+    /explicit operator approval/
+  );
+
+  assert.throws(
+    () => createPaystackTransferProvider({
+      secretKey: "sk_live_example",
+      recipientCode: "RCP_PROD_TEST",
+      allowLive: true,
+      environment: "production",
+      productionApproval: "true",
+      auditEnabled: true,
+      monitoringEnabled: true,
+      rollbackEnabled: false
+    }),
+    /rollback\/disable path/
+  );
+});
