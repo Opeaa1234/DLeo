@@ -5,6 +5,7 @@
 // Paystack amounts are provider subunits: NGN uses kobo, GHS uses pesewas.
 
 import { validatePaymentPolicy } from "../payment-policy.js";
+import { assertProductionActivation } from "./production-activation-guard.js";
 
 const PAYSTACK_API_URL = "https://api.paystack.co";
 
@@ -14,7 +15,11 @@ export function createPaystackTransferProvider({
   fetchImpl = fetch,
   maxAmount = 100000,
   allowLive = false,
-  environment = process.env.NODE_ENV
+  environment = process.env.NODE_ENV,
+  productionApproval = process.env.DLEO_PRODUCTION_ACTIVATION_APPROVED,
+  auditEnabled = false,
+  monitoringEnabled = false,
+  rollbackEnabled = false
 } = {}) {
   if (!secretKey) {
     throw new Error("PAYSTACK_SECRET_KEY is required at runtime and must not be committed to Git.");
@@ -39,6 +44,22 @@ export function createPaystackTransferProvider({
   // sandbox/test process from ever becoming a live transfer path by accident.
   if (allowLive === true && environment !== "production") {
     throw new Error("Live Paystack transfers require NODE_ENV=production.");
+  }
+
+  // A live provider must pass the centralized fail-closed production gate.
+  // The guard validates approval, limits, audit, monitoring, and rollback
+  // controls without ever returning the raw credential.
+  if (allowLive === true) {
+    assertProductionActivation({
+      environment,
+      approval: productionApproval,
+      secretKey,
+      recipientCode,
+      maxAmount,
+      auditEnabled,
+      monitoringEnabled,
+      rollbackEnabled
+    });
   }
 
   return {
