@@ -10,11 +10,11 @@ export function validatePaystackTestEnvironment({
     throw new Error("Paystack test provider cannot run in production.");
   }
 
-  if (!secretKey || !secretKey.startsWith("sk_test_")) {
+  if (typeof secretKey !== "string" || secretKey.length === 0 || !secretKey.startsWith("sk_test_")) {
     throw new Error("Paystack test environment requires a test secret key.");
   }
 
-  if (!recipientCode) {
+  if (typeof recipientCode !== "string" || recipientCode.length === 0) {
     throw new Error("Paystack test environment requires a test recipient code.");
   }
 
