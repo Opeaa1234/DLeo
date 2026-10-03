@@ -6,6 +6,10 @@
 
 import { validatePaymentPolicy } from "../payment-policy.js";
 import { assertProductionActivation } from "./production-activation-guard.js";
+import { createControlledTransfer } from "./controlled-transfer.js";
+import { createTransferIdempotency } from "./transfer-idempotency.js";
+import { createTransferReliability } from "./transfer-reliability.js";
+import { createTransferAudit } from "./transfer-audit.js";
 
 const PAYSTACK_API_URL = "https://api.paystack.co";
 
@@ -19,7 +23,10 @@ export function createPaystackTransferProvider({
   productionApproval = process.env.DLEO_PRODUCTION_ACTIVATION_APPROVED,
   auditEnabled = false,
   monitoringEnabled = false,
-  rollbackEnabled = false
+  rollbackEnabled = false,
+  idempotency = createTransferIdempotency(),
+  reliability = createTransferReliability({ fetchImpl }),
+  audit = createTransferAudit()
 } = {}) {
   if (!secretKey) {
     throw new Error("PAYSTACK_SECRET_KEY is required at runtime and must not be committed to Git.");
@@ -28,27 +35,18 @@ export function createPaystackTransferProvider({
     throw new Error("A pre-registered Paystack recipient code is required.");
   }
 
-  // Prevent accidental use of a live key while this adapter is being developed.
-  // Live transfers must be an explicit, separately reviewed decision.
   if (secretKey.startsWith("sk_live_") && allowLive !== true) {
     throw new Error("Live Paystack transfers are disabled until explicitly enabled.");
   }
 
-  // A live transfer flag is only valid with a live credential. This prevents a
-  // test/sandbox credential from being mistaken for a production transfer path.
   if (allowLive === true && !secretKey.startsWith("sk_live_")) {
     throw new Error("Live Paystack transfers require a live secret key.");
   }
 
-  // Even an explicit live flag is invalid outside production. This keeps a
-  // sandbox/test process from ever becoming a live transfer path by accident.
   if (allowLive === true && environment !== "production") {
     throw new Error("Live Paystack transfers require NODE_ENV=production.");
   }
 
-  // A live provider must pass the centralized fail-closed production gate.
-  // The guard validates approval, limits, audit, monitoring, and rollback
-  // controls without ever returning the raw credential.
   if (allowLive === true) {
     assertProductionActivation({
       environment,
@@ -62,32 +60,42 @@ export function createPaystackTransferProvider({
     });
   }
 
+  const controlledTransfer = createControlledTransfer({ idempotency, reliability, audit });
+
   return {
     async charge(paymentRequest) {
       validatePaymentPolicy(paymentRequest, { maxAmount });
 
-      const response = await fetchImpl(`${PAYSTACK_API_URL}/transfer`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${secretKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          source: "balance",
-          amount: paymentRequest.amount,
-          recipient: recipientCode,
-          reference: paymentRequest.id,
-          reason: paymentRequest.merchant,
-          currency: paymentRequest.currency
-        })
+      const request = {
+        url: `${PAYSTACK_API_URL}/transfer`,
+        options: {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${secretKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            source: "balance",
+            amount: paymentRequest.amount,
+            recipient: recipientCode,
+            reference: paymentRequest.id,
+            reason: paymentRequest.merchant,
+            currency: paymentRequest.currency
+          })
+        }
+      };
+
+      return controlledTransfer.execute({
+        reference: paymentRequest.id,
+        request,
+        provider: async (response) => {
+          const data = await response.json();
+          if (data.status !== true) {
+            throw new Error(data.message || "Paystack transfer request failed.");
+          }
+          return data.data;
+        }
       });
-
-      const data = await response.json();
-      if (!response.ok || data.status !== true) {
-        throw new Error(data.message || "Paystack transfer request failed.");
-      }
-
-      return data.data;
     }
   };
 }
