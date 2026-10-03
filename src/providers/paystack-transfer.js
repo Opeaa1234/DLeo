@@ -28,10 +28,10 @@ export function createPaystackTransferProvider({
   reliability = createTransferReliability({ fetchImpl }),
   audit = createTransferAudit()
 } = {}) {
-  if (!secretKey) {
+  if (typeof secretKey !== "string" || secretKey.length === 0) {
     throw new Error("PAYSTACK_SECRET_KEY is required at runtime and must not be committed to Git.");
   }
-  if (!recipientCode) {
+  if (typeof recipientCode !== "string" || recipientCode.length === 0) {
     throw new Error("A pre-registered Paystack recipient code is required.");
   }
 
@@ -39,7 +39,7 @@ export function createPaystackTransferProvider({
     throw new Error("Live Paystack transfers are disabled until explicitly enabled.");
   }
 
-  if (allowLive === true && !secretKey.startsWith("sk_live_")) {
+  if (allowLive === true && (typeof secretKey !== "string" || !secretKey.startsWith("sk_live_"))) {
     throw new Error("Live Paystack transfers require a live secret key.");
   }
 
