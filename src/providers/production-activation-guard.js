@@ -1,6 +1,7 @@
 // Fail-closed production activation guard.
 // This module never creates or stores credentials. It only validates explicit
 // runtime preconditions before a separately reviewed production provider can run.
+// The raw secret is intentionally never returned by this guard.
 
 export function assertProductionActivation({
   environment = process.env.NODE_ENV,
@@ -24,7 +25,7 @@ export function assertProductionActivation({
     throw new Error("A production secret key must be supplied at runtime.");
   }
 
-  if (secretKey.startsWith("sk_test_")) {
+  if (!secretKey.startsWith("sk_live_")) {
     throw new Error("Production activation requires a production Paystack secret key.");
   }
 
@@ -51,7 +52,6 @@ export function assertProductionActivation({
   return Object.freeze({
     environment: "production",
     approved: true,
-    secretKey,
     recipientCode,
     maxAmount,
     auditEnabled: true,
