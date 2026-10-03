@@ -71,3 +71,15 @@ test("Paystack adapter blocks a live key unless live transfers are explicitly en
     /Live Paystack transfers are disabled/
   );
 });
+
+test("Paystack adapter blocks the live flag outside production", () => {
+  assert.throws(
+    () => createPaystackTransferProvider({
+      secretKey: "test-secret-not-real",
+      recipientCode: "RCP_TEST",
+      allowLive: true,
+      environment: "test"
+    }),
+    /NODE_ENV=production/
+  );
+});
