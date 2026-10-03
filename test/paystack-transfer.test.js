@@ -75,11 +75,23 @@ test("Paystack adapter blocks a live key unless live transfers are explicitly en
 test("Paystack adapter blocks the live flag outside production", () => {
   assert.throws(
     () => createPaystackTransferProvider({
-      secretKey: "test-secret-not-real",
+      secretKey: "sk_live_example",
       recipientCode: "RCP_TEST",
       allowLive: true,
       environment: "test"
     }),
     /NODE_ENV=production/
+  );
+});
+
+test("Paystack adapter blocks the live flag when the credential is not live", () => {
+  assert.throws(
+    () => createPaystackTransferProvider({
+      secretKey: "test-secret-not-real",
+      recipientCode: "RCP_TEST",
+      allowLive: true,
+      environment: "production"
+    }),
+    /live secret key/
   );
 });
