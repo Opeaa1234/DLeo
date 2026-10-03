@@ -14,6 +14,8 @@ DLeo is a personal software bug detective and repair assistant.
 
 The payment layer does **not** access banking apps, passwords, PINs, OTPs, card numbers, or device storage. Real payments are not enabled by this repository yet.
 
+The Paystack adapter is fail-closed for live transfers. A live path requires all of the following at runtime: a production environment, explicit operator approval, a provider-issued live credential, a pre-registered recipient, a positive transaction limit, audit logging, monitoring, and a tested rollback/disable path. The production activation guard never returns or stores the raw credential.
+
 A real provider should only be connected through an authorized API using provider-issued credentials/tokens, explicit user confirmation, spending limits, and a test/sandbox environment first.
 
 ## Commands
