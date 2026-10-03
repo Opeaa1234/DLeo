@@ -21,12 +21,61 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Validate Paystack test-key type handling
+        run: |
+          node --input-type=module <<'NODE'
+          import { createPaystackTestConfig } from './src/providers/paystack-test-config.js';
+          import { validatePaystackTestEnvironment } from './src/providers/paystack-test-preflight.js';
+
+          for (const secretKey of [undefined, null, 123, {}, '']) {
+            try {
+              createPaystackTestConfig({ secretKey, recipientCode: 'RCP_test' });
+              throw new Error('Expected invalid test key to be rejected');
+            } catch (error) {
+              if (error?.message === 'Expected invalid test key to be rejected') throw error;
+            }
+
+            try {
+              validatePaystackTestEnvironment({ secretKey, recipientCode: 'RCP_test' });
+              throw new Error('Expected invalid preflight key to be rejected');
+            } catch (error) {
+              if (error?.message === 'Expected invalid preflight key to be rejected') throw error;
+            }
+          }
+
+          console.log('Paystack test-key type validation OK');
+          NODE
+
+      - name: Validate production credential guard
+        run: |
+          node --input-type=module <<'NODE'
+          import { createPaystackTransferProvider } from './src/providers/paystack-transfer.js';
+
+          try {
+            createPaystackTransferProvider({
+              secretKey: 123,
+              recipientCode: 'RCP_test',
+              allowLive: true,
+              environment: 'production'
+            });
+            throw new Error('Expected invalid production credential to be rejected');
+          } catch (error) {
+            if (error?.message === 'Expected invalid production credential to be rejected') throw error;
+          }
+
+          console.log('Production credential validation OK');
+          NODE
 
       - name: Run tests
         run: npm test
 
+      - name: Build
+        run: npm run build --if-present
+
       - name: Run DLeo scan
-        run: npm run scan --                      https://www.facebook.com/
+        run: npm run scan -- https://www.facebook.com/
