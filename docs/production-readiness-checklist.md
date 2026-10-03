@@ -13,6 +13,7 @@ This checklist records review items; it does not authorize live payments.
 - [ ] Retry and timeout behavior is bounded and reviewed.
 - [ ] Audit events are generated for authorization, submission, success, failure, and recovery paths.
 - [ ] Live-key rejection remains covered by sandbox tests.
+- [ ] Live-transfer enablement is rejected outside `NODE_ENV=production`.
 - [ ] A controlled production smoke test is planned with an explicitly approved test transaction.
 - [ ] Explicit operator approval is recorded before enabling any real-money operation.
 
@@ -21,5 +22,7 @@ This checklist records review items; it does not authorize live payments.
 Sandbox/test environment: PASS according to the latest GitHub Actions results reviewed in this project.
 
 Production activation: NOT ENABLED.
+
+The latest hardening adds an environment boundary so a live-transfer flag cannot activate the transfer adapter from a test/sandbox process.
 
 No live credential, real recipient, or real-money transaction is authorized by this checklist.
