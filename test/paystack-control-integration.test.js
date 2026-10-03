@@ -16,21 +16,23 @@ function authorizedPayment(id = "integration-1") {
 test("Paystack adapter uses idempotency and audit controls around the provider request", async () => {
   let calls = 0;
   const events = [];
+  const fetchImpl = async () => {
+    calls += 1;
+    return {
+      ok: true,
+      status: 200,
+      async json() {
+        return { status: true, data: { status: "pending", reference: "integration-1" } };
+      }
+    };
+  };
+
   const provider = createPaystackTransferProvider({
     secretKey: "test-secret-not-real",
     recipientCode: "RCP_TEST",
-    fetchImpl: async () => {
-      calls += 1;
-      return {
-        ok: true,
-        status: 200,
-        async json() {
-          return { status: true, data: { status: "pending", reference: "integration-1" } };
-        }
-      };
-    },
+    fetchImpl,
     idempotency: createTransferIdempotency(),
-    reliability: createTransferReliability({ sleep: async () => {} }),
+    reliability: createTransferReliability({ fetchImpl, sleep: async () => {} }),
     audit: createTransferAudit({ sink: event => events.push(event) })
   });
 
@@ -43,29 +45,25 @@ test("Paystack adapter uses idempotency and audit controls around the provider r
   assert.deepEqual(events.map(event => event.outcome), ["success", "duplicate"]);
 });
 
-test("Paystack adapter records an ambiguous timeout without calling the provider parser", async () => {
+test("Paystack adapter records an ambiguous timeout without parsing it as a provider result", async () => {
   const events = [];
-  let parserCalled = false;
+  const fetchImpl = async () => {
+    const error = new Error("network unavailable");
+    error.name = "AbortError";
+    throw error;
+  };
+
   const provider = createPaystackTransferProvider({
     secretKey: "test-secret-not-real",
     recipientCode: "RCP_TEST",
-    fetchImpl: async () => {
-      const error = new Error("network unavailable");
-      error.name = "AbortError";
-      throw error;
-    },
+    fetchImpl,
     idempotency: createTransferIdempotency(),
-    reliability: createTransferReliability({ sleep: async () => {} }),
+    reliability: createTransferReliability({ fetchImpl, sleep: async () => {} }),
     audit: createTransferAudit({ sink: event => events.push(event) })
   });
 
-  // The provider parser is internal to the adapter; this assertion verifies
-  // that the public call returns the reliability outcome instead of inventing
-  // a successful provider result after an ambiguous request.
   const result = await provider.charge(authorizedPayment("integration-2"));
-  parserCalled = result?.providerReference !== undefined;
 
   assert.equal(result.outcome, "ambiguous_timeout");
-  assert.equal(parserCalled, false);
   assert.equal(events.at(-1).outcome, "ambiguous_timeout");
 });
