@@ -29,6 +29,12 @@ export function createPaystackTransferProvider({
     throw new Error("Live Paystack transfers are disabled until explicitly enabled.");
   }
 
+  // A live transfer flag is only valid with a live credential. This prevents a
+  // test/sandbox credential from being mistaken for a production transfer path.
+  if (allowLive === true && !secretKey.startsWith("sk_live_")) {
+    throw new Error("Live Paystack transfers require a live secret key.");
+  }
+
   // Even an explicit live flag is invalid outside production. This keeps a
   // sandbox/test process from ever becoming a live transfer path by accident.
   if (allowLive === true && environment !== "production") {
