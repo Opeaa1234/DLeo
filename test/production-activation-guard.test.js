@@ -19,6 +19,7 @@ test("production activation passes only when every explicit precondition is sati
   assert.equal(result.environment, "production");
   assert.equal(result.approved, true);
   assert.equal(result.maxAmount, 100000);
+  assert.equal(result.secretKey, undefined);
 });
 
 test("production activation rejects sandbox environment", () => {
@@ -35,9 +36,14 @@ test("production activation requires explicit operator approval", () => {
   );
 });
 
-test("production activation rejects a test key", () => {
+test("production activation accepts only an explicit Paystack live-key prefix", () => {
   assert.throws(
     () => assertProductionActivation({ ...valid, secretKey: "sk_test_example" }),
+    /production Paystack secret key/
+  );
+
+  assert.throws(
+    () => assertProductionActivation({ ...valid, secretKey: "not-a-real-key" }),
     /production Paystack secret key/
   );
 });
