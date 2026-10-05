@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { summarizeSecurityHeaders } from "./security-summary.js";
+
 const args = process.argv.slice(2);
 
 function printHelp() {
@@ -73,24 +75,20 @@ async function scanWebsite(url) {
     console.log(`Response time: ${elapsed} ms`);
     console.log(`Final URL: ${response.url}`);
 
+    const security = summarizeSecurityHeaders(response.headers);
+
     console.log("");
     console.log("Security headers:");
 
-    const headersToCheck = [
-      "content-security-policy",
-      "strict-transport-security",
-      "x-content-type-options",
-      "x-frame-options",
-      "referrer-policy"
-    ];
-
-    for (const header of headersToCheck) {
-      const value = response.headers.get(header);
+    for (const result of security.results) {
       console.log(
-        `${value ? "OK " : "WARN"} ${header}: ${value || "missing"}`
+        `${result.present ? "OK " : "WARN"} ${result.name}: ${result.value}`
       );
     }
 
+    console.log("");
+    console.log(`Risk summary: ${security.status}`);
+    console.log(`Missing/weak checks: ${security.missingCount}`);
     console.log("");
     console.log("DLeo scan complete.");
     console.log("Findings above should be reviewed before making changes.");
