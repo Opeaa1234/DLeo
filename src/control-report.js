@@ -1,7 +1,8 @@
 export function buildControlReport({
   auditEvents = [],
   environment = "sandbox",
-  realMoneyEnabled = false
+  realMoneyEnabled = false,
+  controls = {}
 } = {}) {
   const events = Array.isArray(auditEvents) ? auditEvents : [];
   const actions = new Set(events.map((event) => event?.action));
@@ -9,7 +10,10 @@ export function buildControlReport({
   const checks = {
     authorization: actions.has("payment.authorized"),
     stateControl: actions.has("payment.submitted"),
-    sandboxExecution: environment === "sandbox" && actions.has("payment.sandbox_simulated"),
+    sandboxExecution:
+      environment === "sandbox" && actions.has("payment.sandbox_simulated"),
+    idempotency: controls.idempotency === true,
+    reliability: controls.reliability === true,
     auditTrail: events.length > 0,
     liveMoneyDisabled: realMoneyEnabled === false
   };
