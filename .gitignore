@@ -4,5 +4,8 @@
 # Compiled Menu Modules
 *.mmx
 
+# Compiled Pre-Linked Libraries
+*.plx
+
 # Local diagnostic exports may contain environment details.
 reports/
