@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { summarizeSecurityHeaders } from "./security-summary.js";
+import { createReport, saveReport } from "./reporter.js";
 
 const args = process.argv.slice(2);
 
@@ -11,13 +12,15 @@ Personal software bug detective and repair assistant
 
 Commands:
   node src/index.js doctor
-  node src/index.js scan <url>
+  node src/index.js scan <url> [--export-json]
   node src/index.js help
 
 Examples:
   node src/index.js doctor
   node src/index.js scan https://example.com
+  node src/index.js scan https://example.com --export-json
 
+JSON reports are saved locally in the reports/ folder only when --export-json is supplied.
 Only scan websites and applications you own or are authorized to test.
 `);
 }
@@ -31,7 +34,7 @@ async function doctor() {
   console.log("Safety mode: authorized targets only");
 }
 
-async function scanWebsite(url) {
+async function scanWebsite(url, { exportJson = false } = {}) {
   if (!url) {
     console.error("Error: provide a URL.");
     console.error("Example: node src/index.js scan https://example.com");
@@ -55,8 +58,8 @@ async function scanWebsite(url) {
     return;
   }
 
-  console.log(`DLeo Detective`);
-  console.log(`==============`);
+  console.log("DLeo Detective");
+  console.log("==============");
   console.log(`Target: ${target.href}`);
   console.log("");
 
@@ -89,6 +92,36 @@ async function scanWebsite(url) {
     console.log("");
     console.log(`Risk summary: ${security.status}`);
     console.log(`Missing/weak checks: ${security.missingCount}`);
+
+    if (exportJson) {
+      // Reports intentionally store origins only, never URL paths, queries, or fragments.
+      // Findings contain header names and status only, not response bodies or header values.
+      const reportFindings = security.results
+        .filter((item) => !item.present)
+        .map((item) => ({
+          type: "missing-security-header",
+          severity: "low",
+          header: item.name,
+          message: `Security header "${item.name}" is missing.`
+        }));
+
+      const report = createReport(target.origin, reportFindings, {
+        httpStatus: response.status,
+        responseTimeMs: elapsed,
+        finalOrigin: new URL(response.url).origin,
+        securityStatus: security.status,
+        missingCount: security.missingCount
+      });
+
+      try {
+        const filepath = await saveReport(report);
+        console.log(`JSON report saved locally: ${filepath}`);
+      } catch (error) {
+        console.error(`Could not save JSON report: ${error.message}`);
+        process.exitCode = 1;
+      }
+    }
+
     console.log("");
     console.log("DLeo scan complete.");
     console.log("Findings above should be reviewed before making changes.");
@@ -114,7 +147,9 @@ async function main() {
   }
 
   if (command === "scan") {
-    await scanWebsite(args[1]);
+    await scanWebsite(args[1], {
+      exportJson: args.slice(2).includes("--export-json")
+    });
     return;
   }
 
